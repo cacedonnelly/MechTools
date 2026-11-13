@@ -1,7 +1,7 @@
+from bakery import assert_equal
 from drafter import *
 from dataclasses import dataclass, field
 import math
-
 
 # ==========================================
 # DATACLASSES
@@ -31,7 +31,6 @@ class State:
     rpm_input: str = ""
     torque_input: str = ""
 
-
 # ==========================================
 # CALCULATION FUNCTIONS
 # ==========================================
@@ -53,7 +52,6 @@ def find_gear(state: State, name: str):
         if gear.name == name:
             return gear
     return None
-
 
 # ==========================================
 # NAVIGATION - UPDATED
@@ -103,7 +101,6 @@ def error_page(state: State, title: str, message: str) -> Page:
         *navigation()
     ])
 
-
 # ==========================================
 # ROUTE 1: HOME
 # ==========================================
@@ -121,7 +118,6 @@ def index(state: State) -> Page:
         Button("Get Started", "calculator"),
         *navigation()
     ])
-
 
 # ==========================================
 # ROUTE 2: CALCULATOR
@@ -150,7 +146,6 @@ def calculator(state: State) -> Page:
         Button("Calculate and Save", "calculate"),
         *navigation()
     ])
-
 
 # ==========================================
 # ROUTE 3: CALCULATE AND VALIDATE
@@ -261,7 +256,6 @@ def calculate(state: State, name: str,
 
     return results(state)
 
-
 # ==========================================
 # ROUTE 4: RESULTS
 # ==========================================
@@ -327,7 +321,6 @@ def results(state: State) -> Page:
 
     return Page(state, content)
 
-
 # ==========================================
 # ROUTE 5: HISTORY
 # ==========================================
@@ -359,7 +352,6 @@ def history(state: State) -> Page:
     content.extend(navigation())
     return Page(state, content)
 
-
 # ==========================================
 # ROUTE 6: DELETE CALCULATION
 # ==========================================
@@ -382,7 +374,6 @@ def delete_record(state: State, name: str) -> Page:
         state.comparison_name = ""
 
     return history(state)
-
 
 # ==========================================
 # ROUTE 7: COMPARISON
@@ -416,7 +407,6 @@ def compare(state: State) -> Page:
 
     content.extend(navigation())
     return Page(state, content)
-
 
 # ==========================================
 # ROUTE 8: COMPARISON RESULTS
@@ -492,7 +482,6 @@ def compare_results(state: State,
 
     return Page(state, content)
 
-
 # ==========================================
 # ROUTE 9: FORMULA GUIDE
 # ==========================================
@@ -527,7 +516,6 @@ def guide(state: State) -> Page:
         *navigation()
     ])
 
-
 # ==========================================
 # ROUTE 10: SETTINGS
 # ==========================================
@@ -556,7 +544,6 @@ def settings(state: State) -> Page:
         *navigation()
     ])
 
-
 # ==========================================
 # ROUTE 11: SAVE SETTINGS
 # ==========================================
@@ -579,10 +566,631 @@ def save_settings(state: State,
         *navigation()
     ])
 
+# ==========================================
+# MECHTOOLS V.1 - UNIT TESTS
+# ==========================================
+
+# ==========================================
+# TEST 1: GEAR RATIO
+# ==========================================
+
+gear1 = GearCalculation("Test1", 20, 60, 1200, 10)
+gear2 = GearCalculation("Test2", 60, 20, 1200, 10)
+gear3 = GearCalculation("Test3", 50, 50, 1000, 5)
+
+assert_equal(gear_ratio(gear1), 3.0)
+assert_equal(round(gear_ratio(gear2), 2), 0.33)
+assert_equal(gear_ratio(gear3), 1.0)
+
+# ==========================================
+# TEST 2: OUTPUT RPM
+# ==========================================
+
+assert_equal(output_rpm(gear1), 400.0)
+assert_equal(output_rpm(gear2), 3600.0)
+assert_equal(output_rpm(gear3), 1000.0)
+
+# Regression test for the division-by-zero bug
+gear_small = GearCalculation("Small", 1000, 1, 1200, 10)
+assert_equal(output_rpm(gear_small), 1200000.0)
+
+# ==========================================
+# TEST 3: OUTPUT TORQUE
+# ==========================================
+
+assert_equal(output_torque(gear1), 30.0)
+assert_equal(round(output_torque(gear2), 2), 3.33)
+assert_equal(output_torque(gear3), 5.0)
+
+# ==========================================
+# TEST 4: FIND GEAR
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+test_state.history.append(gear2)
+
+assert_equal(find_gear(test_state, "Test1"), gear1)
+assert_equal(find_gear(test_state, "Test2"), gear2)
+assert_equal(find_gear(test_state, "Missing"), None)
+
+# ==========================================
+# TEST 5: NAVIGATION
+# ==========================================
+
+nav = navigation()
+
+assert_equal(nav[2], Link("Home", "index"))
+assert_equal(nav[4], Link("Calculator", "calculator"))
+assert_equal(nav[6], Link("History", "history"))
+assert_equal(nav[8], Link("Compare", "compare"))
+assert_equal(nav[10], Link("Guide", "guide"))
+assert_equal(nav[12], Link("Settings", "settings"))
+
+# ==========================================
+# TEST 6: GEAR SUMMARY
+# ==========================================
+
+summary = gear_summary(gear1)
+
+assert_equal(summary[0], Header("Test1"))
+assert_equal(summary[1], "Gear Ratio: 3.0:1\n")
+assert_equal(summary[2], "Output RPM: 400.0\n")
+assert_equal(summary[3], "Ideal Output Torque: 30.0 N-m\n")
+
+# ==========================================
+# TEST 7: ERROR PAGE
+# ==========================================
+
+test_state = State()
+
+error_result = error_page(
+    test_state,
+    "Test Error",
+    "Something went wrong."
+)
+
+assert_equal(error_result.state, test_state)
+assert_equal(error_result.content[0], Header("Test Error"))
+assert_equal(
+    error_result.content[1],
+    "Something went wrong."
+)
+assert_equal(
+    error_result.content[3],
+    Button("Try Again", "calculator")
+)
+
+# ==========================================
+# TEST 8: HOME PAGE
+# ==========================================
+
+test_state = State()
+home_page = index(test_state)
+
+assert_equal(home_page.state, test_state)
+assert_equal(home_page.content[0], Header("MechTools"))
+assert_equal(
+    home_page.content[3],
+    "Saved calculations: 0\n"
+)
+
+test_state.history.append(gear1)
+home_page = index(test_state)
+
+assert_equal(
+    home_page.content[3],
+    "Saved calculations: 1\n"
+)
+
+# ==========================================
+# TEST 9: CALCULATOR PAGE
+# ==========================================
+
+test_state = State()
+calculator_page = calculator(test_state)
+
+assert_equal(
+    calculator_page.content[0],
+    Header("Gear Calculator")
+)
+
+assert_equal(
+    calculator_page.content[2],
+    TextBox("name", "System")
+)
+
+assert_equal(
+    calculator_page.content[4],
+    TextBox("driver_teeth", "")
+)
+
+# FIX: Button is at index 11, not 12.
+assert_equal(
+    calculator_page.content[11],
+    Button("Calculate and Save", "calculate")
+)
+
+# ==========================================
+# TEST 10: CALCULATE - VALID INPUT
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear A",
+    "20",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(len(test_state.history), 1)
+assert_equal(test_state.history[0].name, "Gear A")
+assert_equal(test_state.history[0].driver_teeth, 20)
+assert_equal(test_state.history[0].driven_teeth, 60)
+assert_equal(test_state.selected_name, "Gear A")
+assert_equal(test_state.gear_name, "Gear A")
+assert_equal(test_state.driver_input, "20")
+assert_equal(test_state.driven_input, "60")
+assert_equal(test_state.rpm_input, "1200")
+assert_equal(test_state.torque_input, "10")
+
+# ==========================================
+# TEST 11: CALCULATE - MISSING INPUT
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear B",
+    "",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Missing Information")
+)
+
+assert_equal(len(test_state.history), 0)
+assert_equal(test_state.gear_name, "Gear B")
+assert_equal(test_state.driver_input, "")
+
+# ==========================================
+# TEST 12: CALCULATE - INVALID NUMBERS
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear C",
+    "abc",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Input")
+)
+assert_equal(len(test_state.history), 0)
+
+# ==========================================
+# TEST 13: CALCULATE - ZERO TEETH
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear D",
+    "0",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Gear Sizes")
+)
+assert_equal(len(test_state.history), 0)
+
+# ==========================================
+# TEST 14: CALCULATE - NEGATIVE TEETH
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear E",
+    "-20",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Gear Sizes")
+)
+
+# ==========================================
+# TEST 15: CALCULATE - LARGE GEARS
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear F",
+    "10001",
+    "60",
+    "1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Gear Size")
+)
+
+# ==========================================
+# TEST 16: CALCULATE - INFINITY
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear G",
+    "20",
+    "60",
+    "inf",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Number")
+)
+
+# ==========================================
+# TEST 17: CALCULATE - NEGATIVE RPM
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear H",
+    "20",
+    "60",
+    "-1200",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Invalid Input")
+)
+
+# ==========================================
+# TEST 18: CALCULATE - LARGE RPM
+# ==========================================
+
+test_state = State()
+
+result = calculate(
+    test_state,
+    "Gear I",
+    "20",
+    "60",
+    "1000000001",
+    "10"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Input Too Large")
+)
+
+# ==========================================
+# TEST 19: CALCULATE - DUPLICATE NAME
+# ==========================================
+
+test_state = State()
+
+calculate(
+    test_state,
+    "Same",
+    "20",
+    "60",
+    "1200",
+    "10"
+)
+
+result = calculate(
+    test_state,
+    "Same",
+    "30",
+    "90",
+    "1500",
+    "15"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Name Already Used")
+)
+assert_equal(len(test_state.history), 1)
+
+# ==========================================
+# TEST 20: RESULTS PAGE
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+test_state.selected_name = "Test1"
+
+result = results(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Calculation Results")
+)
+assert_equal(
+    result.content[1],
+    Header("Test1")
+)
+assert_equal(
+    result.content[2],
+    "Gear Ratio: 3.0:1\n"
+)
+assert_equal(
+    result.content[3],
+    "Output RPM: 400.0\n"
+)
+
+# ==========================================
+# TEST 21: RESULTS - NO SELECTION
+# ==========================================
+
+test_state = State()
+result = results(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("No Calculation Selected")
+)
+
+# ==========================================
+# TEST 22: HISTORY PAGE - EMPTY
+# ==========================================
+
+test_state = State()
+result = history(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Saved Calculations")
+)
+assert_equal(
+    result.content[1],
+    "No calculations have been saved yet."
+)
+
+# ==========================================
+# TEST 23: HISTORY PAGE - SAVED
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+
+result = history(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Saved Calculations")
+)
+assert_equal(
+    result.content[1],
+    Header("Test1")
+)
+
+# ==========================================
+# TEST 24: DELETE CALCULATION
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+test_state.history.append(gear2)
+test_state.selected_name = "Test1"
+
+result = delete_record(test_state, "Test1")
+
+assert_equal(len(test_state.history), 1)
+assert_equal(test_state.history[0].name, "Test2")
+assert_equal(test_state.selected_name, "")
+assert_equal(
+    result.content[0],
+    Header("Saved Calculations")
+)
+
+# ==========================================
+# TEST 25: COMPARE - NOT ENOUGH GEARS
+# ==========================================
+
+test_state = State()
+result = compare(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Compare Gear Systems")
+)
+assert_equal(
+    result.content[1],
+    "Please save at least two calculations before comparing."
+)
+
+# ==========================================
+# TEST 26: COMPARE PAGE - TWO GEARS
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+test_state.history.append(gear2)
+
+result = compare(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Compare Gear Systems")
+)
+assert_equal(
+    result.content[2],
+    SelectBox("first_name", ["Test1", "Test2"])
+)
+assert_equal(
+    result.content[4],
+    SelectBox("second_name", ["Test1", "Test2"])
+)
+
+# ==========================================
+# TEST 27: COMPARISON RESULTS
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+test_state.history.append(gear2)
+
+result = compare_results(
+    test_state,
+    "Test1",
+    "Test2"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Gear Comparison")
+)
+assert_equal(test_state.selected_name, "Test1")
+assert_equal(test_state.comparison_name, "Test2")
+
+# ==========================================
+# TEST 28: COMPARE - SAME GEAR
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+
+result = compare_results(
+    test_state,
+    "Test1",
+    "Test1"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Choose Different Systems")
+)
+
+# ==========================================
+# TEST 29: COMPARE - MISSING GEAR
+# ==========================================
+
+test_state = State()
+test_state.history.append(gear1)
+
+result = compare_results(
+    test_state,
+    "Test1",
+    "Missing"
+)
+
+assert_equal(
+    result.content[0],
+    Header("Comparison Error")
+)
+
+# ==========================================
+# TEST 30: FORMULA GUIDE
+# ==========================================
+
+test_state = State()
+result = guide(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Engineering Formula Guide")
+)
+assert_equal(
+    result.content[1],
+    Header("Gear Ratio")
+)
+assert_equal(
+    result.content[2],
+    "Gear Ratio = Driven Teeth / Driver Teeth\n"
+)
+
+# ==========================================
+# TEST 31: SETTINGS PAGE
+# ==========================================
+
+test_state = State()
+result = settings(test_state)
+
+assert_equal(
+    result.content[0],
+    Header("Settings")
+)
+assert_equal(
+    result.content[2],
+    SelectBox(
+        "display_mode",
+        ["Detailed", "Simple"],
+        "Detailed"
+    )
+)
+
+# ==========================================
+# TEST 32: SAVE SETTINGS
+# ==========================================
+
+test_state = State()
+
+result = save_settings(
+    test_state,
+    "Simple",
+    "No"
+)
+
+assert_equal(test_state.display_mode, "Simple")
+assert_equal(test_state.show_formulas, "No")
+
+assert_equal(
+    result.content[0],
+    Header("Settings Saved")
+)
+assert_equal(
+    result.content[1],
+    "Display Mode: Simple\n"
+)
+
+# ==========================================
+# END OF UNIT TESTS
+# ==========================================
 
 # ==========================================
 # START WEBSITE
 # ==========================================
 
 start_server(State())
-
